@@ -49,10 +49,9 @@ func main() {
 
 	done := make(chan bool)
 	eventChan := make(chan *FileEvent, 16)
-	registrarChan := make(chan *FileEvent, 16)
 
 	prospector := Prospector{checkpoint: checkpoint, files: make(map[string]*FileState)}
 	go prospector.Prospect(done, eventChan)
-	go Publish(eventChan, registrarChan)
-	Registrar(registrarChan)
+
+	<-done
 }
