@@ -46,6 +46,11 @@ func (h *Harvester) Harvest(input chan bool, output chan *FileEvent) {
 		deadTime = 60 * time.Minute
 	}
 	lastReadTime := time.Now()
+
+	registrarChan := make(chan *FileEvent, 16)
+	go Publish(output, registrarChan)
+	//go Registrar(registrarChan)
+
 	for {
 
 		// check if the log can end with eof

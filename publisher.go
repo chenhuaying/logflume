@@ -21,28 +21,35 @@ func Publish(input chan *FileEvent, registrar chan *FileEvent) {
 		log.Fatalln("Failed to start Sarama producer: ", err)
 	}
 
-	go func() {
-		for {
-			select {
-			case error := <-producer.Errors():
-				log.Println("error:", error)
-			case success := <-producer.Successes():
-				log.Println("OK:", success,
-					success.Metadata.(*FileEvent).Offset,
-					*success.Metadata.(*FileEvent).Source)
-			}
+	defer func() {
+		if err := producer.Close(); err != nil {
+			log.Println("Failed to shutdown producer cleanly", err)
 		}
 	}()
 
+	go Registrar(producer.Errors(), producer.Successes())
+	//go func() {
+	//	for {
+	//		select {
+	//		case error := <-producer.Errors():
+	//			log.Println("error:", error)
+	//		case success := <-producer.Successes():
+	//			log.Println("OK:", success,
+	//				success.Metadata.(*FileEvent).Offset,
+	//				*success.Metadata.(*FileEvent).Source)
+	//		}
+	//	}
+	//}()
+
 	for event := range input {
-		log.Println(*event.Text)
+		log.Printf("%v, %v, %v, %v\n", *event.Source, *event.Text, event.Line, event.Offset)
 		producer.Input() <- &sarama.ProducerMessage{
 			Topic:    "test",
 			Key:      sarama.StringEncoder("test-key"),
 			Value:    sarama.StringEncoder(*event.Text),
 			Metadata: event,
 		}
-		registrar <- event
+		//registrar <- event
 	}
 
 }
