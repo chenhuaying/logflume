@@ -28,18 +28,6 @@ func Publish(input chan *FileEvent, registrar chan *FileEvent) {
 	}()
 
 	go Registrar(producer.Errors(), producer.Successes())
-	//go func() {
-	//	for {
-	//		select {
-	//		case error := <-producer.Errors():
-	//			log.Println("error:", error)
-	//		case success := <-producer.Successes():
-	//			log.Println("OK:", success,
-	//				success.Metadata.(*FileEvent).Offset,
-	//				*success.Metadata.(*FileEvent).Source)
-	//		}
-	//	}
-	//}()
 
 	for event := range input {
 		log.Printf("%v, %v, %v, %v\n", *event.Source, *event.Text, event.Line, event.Offset)
@@ -49,7 +37,6 @@ func Publish(input chan *FileEvent, registrar chan *FileEvent) {
 			Value:    sarama.StringEncoder(*event.Text),
 			Metadata: event,
 		}
-		//registrar <- event
 	}
 
 }

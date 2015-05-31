@@ -26,6 +26,7 @@ func (h *Harvester) Harvest(input chan bool, output chan *FileEvent) {
 		panic(fmt.Sprintf("Harvest: unexcepted error: %s", err.Error()))
 	}
 	defer h.file.Close()
+	// TODO: safe exit
 	//defer func() {
 	//	h.FinishChan <- h.Offset
 	//}()
@@ -49,7 +50,6 @@ func (h *Harvester) Harvest(input chan bool, output chan *FileEvent) {
 
 	registrarChan := make(chan *FileEvent, 16)
 	go Publish(output, registrarChan)
-	//go Registrar(registrarChan)
 
 	for {
 

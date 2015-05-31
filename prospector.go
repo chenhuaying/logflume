@@ -63,10 +63,7 @@ func (p *Prospector) Prospect(done chan bool, output chan *FileEvent) {
 		// TOTO: set to last process
 		var offset int64 = 0
 		harvester := &Harvester{Path: *source.Source, Offset: offset}
-		//registrarChan := make(chan *FileEvent, 16)
 		go harvester.Harvest(input, output)
-		//go Publish(output, registrarChan)
-		//go Registrar(registrarChan)
 	}
 
 	go func() {
@@ -90,10 +87,7 @@ func (p *Prospector) Prospect(done chan bool, output chan *FileEvent) {
 					harvester := &Harvester{Path: source, Offset: offset}
 					input := make(chan bool, 10)
 					harvesterChans = append(harvesterChans, input)
-					//registrarChan := make(chan *FileEvent, 16)
 					go harvester.Harvest(input, output)
-					//go Publish(output, registrarChan)
-					//go Registrar(registrarChan)
 				}
 				log.Println(p.files)
 			case ev := <-watcher.Errors:
