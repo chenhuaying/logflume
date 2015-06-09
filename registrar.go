@@ -61,14 +61,16 @@ func (r *Registrar) RegistrarDo(errorChan <-chan *sarama.ProducerError, succChan
 		select {
 		case err := <-errorChan:
 			log.Println("error:", err)
-			r.recordOpt(err.Msg.Metadata.(*FileEvent).Offset)
+			fev := err.Msg.Metadata.(*FileEvent)
+			r.recordOpt(err.Msg.Metadata.(*FileEvent).Offset + fev.RawBytes)
 		case success := <-succChan:
 			log.Println("OK:", success.Metadata.(*FileEvent).RawBytes,
 				success.Metadata.(*FileEvent).Offset,
 				*success.Metadata.(*FileEvent).Source)
 			fev := success.Metadata.(*FileEvent)
 			log.Printf("registrar(%s), fileEvent(%s)\n", r.file.Name(), *fev.Source)
-			r.recordOpt(success.Metadata.(*FileEvent).Offset)
+			r.recordOpt(success.Metadata.(*FileEvent).Offset + fev.RawBytes)
+			// TODO: sync file with a switch flag
 			r.file.Sync()
 		}
 	}
