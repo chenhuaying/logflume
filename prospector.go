@@ -33,7 +33,7 @@ func (p *Prospector) ListDir() {
 	log.Println(p.files)
 }
 
-func (p *Prospector) Prospect(done chan bool, output chan *FileEvent) {
+func (p *Prospector) Prospect(done chan bool) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Println(err)
@@ -63,6 +63,7 @@ func (p *Prospector) Prospect(done chan bool, output chan *FileEvent) {
 		// TOTO: set to last process
 		var offset int64 = 0
 		harvester := &Harvester{Path: *source.Source, Offset: offset}
+		output := make(chan *FileEvent, 16)
 		go harvester.Harvest(input, output)
 	}
 
@@ -87,6 +88,7 @@ func (p *Prospector) Prospect(done chan bool, output chan *FileEvent) {
 					harvester := &Harvester{Path: source, Offset: offset}
 					input := make(chan bool, 10)
 					harvesterChans = append(harvesterChans, input)
+					output := make(chan *FileEvent, 16)
 					go harvester.Harvest(input, output)
 				}
 				log.Println(p.files)

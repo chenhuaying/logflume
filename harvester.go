@@ -48,8 +48,7 @@ func (h *Harvester) Harvest(input chan bool, output chan *FileEvent) {
 	}
 	lastReadTime := time.Now()
 
-	registrarChan := make(chan *FileEvent, 16)
-	go Publish(output, registrarChan)
+	go Publish(output, h.Path)
 
 	for {
 
@@ -88,6 +87,7 @@ func (h *Harvester) Harvest(input chan bool, output chan *FileEvent) {
 			Line:     line,
 			Text:     text,
 			fileinfo: &info,
+			RawBytes: int64(bytesread),
 		}
 		h.Offset += int64(bytesread)
 

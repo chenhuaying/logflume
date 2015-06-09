@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func Publish(input chan *FileEvent, registrar chan *FileEvent) {
+func Publish(input chan *FileEvent, source string) {
 	log.Println("publish loop")
 
 	clientConfig := sarama.NewConfig()
@@ -27,7 +27,8 @@ func Publish(input chan *FileEvent, registrar chan *FileEvent) {
 		}
 	}()
 
-	go Registrar(producer.Errors(), producer.Successes())
+	registrar := &Registrar{source: source}
+	go registrar.RegistrarDo(producer.Errors(), producer.Successes())
 
 	for event := range input {
 		log.Printf("%v, %v, %v, %v\n", *event.Source, *event.Text, event.Line, event.Offset)

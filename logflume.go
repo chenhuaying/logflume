@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/docopt/docopt-go"
 	"log"
+	"os"
 	"runtime"
 )
 
@@ -47,11 +48,36 @@ func main() {
 
 	runtime.GOMAXPROCS(cpus)
 
+	if work_dir[0] == '/' {
+		if err := os.Chdir(work_dir); err != nil {
+			log.Fatalln("change dir error:", err)
+		}
+	}
+	if _, err := os.Stat(".lock"); os.IsNotExist(err) {
+		log.Println("starting logflume")
+	} else {
+		log.Println("already run")
+		os.Exit(2)
+	}
+	lockFile, err := os.OpenFile(".lock", os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		log.Fatalln("create pid file failed! error:", err)
+	}
+
+	defer lockFile.Close()
+	defer func() {
+		log.Println("remove .lock file")
+		os.Remove(".lock")
+	}()
+
+	if _, err := lockFile.WriteString(fmt.Sprintf("%d", os.Getpid())); err != nil {
+		log.Println("write lock file failed, error:", err)
+	}
+
 	done := make(chan bool)
-	eventChan := make(chan *FileEvent, 16)
 
 	prospector := Prospector{checkpoint: checkpoint, files: make(map[string]*FileState)}
-	go prospector.Prospect(done, eventChan)
+	go prospector.Prospect(done)
 
 	<-done
 }
