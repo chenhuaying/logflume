@@ -60,11 +60,11 @@ func (r *Registrar) RegistrarDo(errorChan <-chan *sarama.ProducerError, succChan
 	for {
 		select {
 		case err := <-errorChan:
-			log.Println("error:", err)
+			log.Println("Received Error:", err)
 			fev := err.Msg.Metadata.(*FileEvent)
 			r.recordOpt(err.Msg.Metadata.(*FileEvent).Offset + fev.RawBytes)
 		case success := <-succChan:
-			log.Println("OK:", success.Metadata.(*FileEvent).RawBytes,
+			log.Println("Received OK:", success.Metadata.(*FileEvent).RawBytes,
 				success.Metadata.(*FileEvent).Offset,
 				*success.Metadata.(*FileEvent).Source)
 			fev := success.Metadata.(*FileEvent)
