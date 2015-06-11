@@ -29,6 +29,8 @@ Options:
  -t, --tail=<flag>    Tail on Log
 `
 
+var mainRetryer *Retryer
+
 func main() {
 	args, err := docopt.Parse(usage, nil, true, "logflume v1.0", false)
 	if err != nil {
@@ -74,10 +76,17 @@ func main() {
 		log.Println("write lock file failed, error:", err)
 	}
 
+	mainRetryer, err = NewRetryer("retry/backup/retry.list")
+	if err != nil {
+		log.Println("Create mainRetryer failed, error:", err)
+		return
+	}
+
 	done := make(chan bool)
 
 	prospector := Prospector{checkpoint: checkpoint, files: make(map[string]*FileState)}
 	go prospector.Prospect(done)
+	go mainRetryer.doRetry()
 
 	<-done
 }

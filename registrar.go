@@ -9,10 +9,14 @@ import (
 )
 
 type Registrar struct {
-	source    string
-	file      *os.File
-	recordOpt func(int64) error
+	source      string
+	dir         string
+	file        *os.File
+	recordOpt   func(int64) error
+	publishCtrl chan bool
 }
+
+const REGISTRAR_DIR string = "record"
 
 func (r *Registrar) SilenceRecordOffset(offset int64) error {
 	return nil
@@ -23,8 +27,10 @@ func (r *Registrar) OpenRecord(recordDir string) (*os.File, error) {
 		log.Printf("%s not exist, create it now\n", recordDir)
 		err := os.MkdirAll(recordDir, 0755)
 		if err != nil {
-			log.Printf("MkdirAll %s failed, error: %s\n", recordDir, err)
-			return nil, err
+			if err != os.ErrExist {
+				log.Printf("MkdirAll %s failed, error: %s\n", recordDir, err)
+				return nil, err
+			}
 		}
 	}
 	path := filepath.Join(recordDir, filepath.Base(r.source))
@@ -46,6 +52,8 @@ func (r *Registrar) RecordOffset(offset int64) error {
 	log.Printf("record offset of %s, offset %d\n", r.file.Name(), offset)
 	return nil
 }
+func (r *Registrar) doBackup(text string) {
+}
 
 func (r *Registrar) RegistrarDo(errorChan <-chan *sarama.ProducerError, succChan <-chan *sarama.ProducerMessage) {
 	// record root dir: $work_dir/record, path: $record_root/$log_name
@@ -56,6 +64,7 @@ func (r *Registrar) RegistrarDo(errorChan <-chan *sarama.ProducerError, succChan
 	} else {
 		log.Println("set to file record")
 		r.recordOpt = r.RecordOffset
+		defer r.file.Close()
 	}
 	for {
 		select {
@@ -63,6 +72,9 @@ func (r *Registrar) RegistrarDo(errorChan <-chan *sarama.ProducerError, succChan
 			log.Println("Received Error:", err)
 			fev := err.Msg.Metadata.(*FileEvent)
 			r.recordOpt(err.Msg.Metadata.(*FileEvent).Offset + fev.RawBytes)
+			// record to retryer
+			mainRetryer.doBackup(*fev.Text)
+			r.publishCtrl <- false
 		case success := <-succChan:
 			log.Println("Received OK:", success.Metadata.(*FileEvent).RawBytes,
 				success.Metadata.(*FileEvent).Offset,
