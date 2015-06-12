@@ -71,7 +71,8 @@ func (h *Harvester) Harvest(input chan bool, output chan *FileEvent) {
 			// pass
 		}
 
-		// XXX TODO: how process failed, and set to able
+		// how process failed, and set to able
+		// use a global variable, cat it be better?
 		if !publishAble {
 			log.Println("Remote server error, can't seed, wating...")
 			if remoteAvailable {
