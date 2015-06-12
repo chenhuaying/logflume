@@ -16,7 +16,7 @@ var (
 	work_dir          = "./logflume"
 	tailOnLog         = false
 	harvestBufferSize = 16 << 10 //16k
-	deadtime          = "1m"     //1 hour
+	deadtime          = "1h"     //1 hour
 	defaultTopic      = "test"   //kafka Topic
 	defaultBrokerList = []string{"127.0.0.1:9092"}
 )
@@ -35,6 +35,7 @@ Options:
  -c, --checkpoint=<path>    Check point, directory or an file, terminal with / means a directory
  -k, --cpus=<num>    Num of CPU logflume use
  -t, --tail=<flag>    Tail on Log
+ --deadtime=<time>    The time between last modify, set log to dead[default: 1h](m:Minute, h:Hour)
  --topic=<topic>	kafka Topic
  --retrytopic=<retry> retry Topic of failed message kafka Topic
  --brokerlist=<broker> broker list, like: "192.168.1.10:9092,192.168.1.11:9092"
@@ -56,8 +57,20 @@ func main() {
 		cpus = args["--cpus"].(int)
 	}
 
+	if args["--work-dir"] != nil {
+		work_dir = args["--work-dir"].(string)
+	}
+
 	if args["--checkpoint"] != nil {
 		checkpoint = args["--checkpoint"].(string)
+	}
+
+	if args["--tail"] != nil {
+		tailOnLog = args["--tail"].(bool)
+	}
+
+	if args["--deadtime"] != nil {
+		deadtime = args["--deadtime"].(string)
 	}
 
 	if args["--topic"] != nil {
@@ -72,6 +85,8 @@ func main() {
 		brokerListStr := args["--brokerlist"].(string)
 		brokerList = strings.Split(brokerListStr, ",")
 	}
+
+	fmt.Println(daemon_mode, cpus, work_dir, checkpoint, tailOnLog, deadtime, kafkaTopic, retryTopic, brokerList)
 
 	runtime.GOMAXPROCS(cpus)
 
