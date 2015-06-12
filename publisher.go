@@ -14,7 +14,7 @@ func Publish(input chan *FileEvent, source string, ctrl chan bool) {
 	clientConfig.Producer.Flush.Frequency = 500 * time.Millisecond
 	clientConfig.Producer.Return.Successes = true
 
-	brokerList := []string{"127.0.0.1:9092"}
+	//brokerList := []string{"127.0.0.1:9092"}
 	producer, err := sarama.NewAsyncProducer(brokerList, clientConfig)
 	if err != nil {
 		log.Fatalln("Failed to start Sarama producer: ", err)
@@ -32,8 +32,8 @@ func Publish(input chan *FileEvent, source string, ctrl chan bool) {
 	for event := range input {
 		log.Printf("%v, %v, %v, %v\n", *event.Source, *event.Text, event.Line, event.Offset)
 		producer.Input() <- &sarama.ProducerMessage{
-			Topic:    "test",
-			Key:      sarama.StringEncoder("test-key"),
+			Topic:    kafkaTopic,
+			Key:      sarama.StringEncoder(hashKey),
 			Value:    sarama.StringEncoder(*event.Text),
 			Metadata: event,
 		}
@@ -48,7 +48,12 @@ func PublishSync(input chan *FileEvent, source string, isRetryer bool) {
 	clientConfig.Producer.Compression = sarama.CompressionSnappy
 	clientConfig.Producer.Retry.Max = 10
 
-	brokerList := []string{"127.0.0.1:9092"}
+	topic := kafkaTopic
+	key := hashKey
+	if isRetryer {
+		topic = retryTopic
+	}
+	//brokerList := []string{"127.0.0.1:9092"}
 	producer, err := sarama.NewSyncProducer(brokerList, clientConfig)
 	if err != nil {
 		log.Fatalln("Failed to start Sarama producer: ", err)
@@ -98,8 +103,8 @@ func PublishSync(input chan *FileEvent, source string, isRetryer bool) {
 
 		for {
 			partition, offset, err := producer.SendMessage(&sarama.ProducerMessage{
-				Topic: "test",
-				Key:   sarama.StringEncoder("test-key"),
+				Topic: topic,
+				Key:   sarama.StringEncoder(key),
 				Value: sarama.StringEncoder(message),
 			})
 			if err != nil {

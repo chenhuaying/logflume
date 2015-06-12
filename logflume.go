@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"strings"
 )
 
 var checkpoint string
@@ -16,7 +17,14 @@ var (
 	tailOnLog         = false
 	harvestBufferSize = 16 << 10 //16k
 	deadtime          = "1m"     //1 hour
+	defaultTopic      = "test"   //kafka Topic
+	defaultBrokerList = []string{"127.0.0.1:9092"}
 )
+
+var kafkaTopic = defaultTopic
+var retryTopic = kafkaTopic
+var hashKey = "test-key"
+var brokerList = defaultBrokerList
 
 var usage = `usage: logflume (--checkpoint=<path> | -c=<path>) [options]
 
@@ -27,6 +35,9 @@ Options:
  -c, --checkpoint=<path>    Check point, directory or an file, terminal with / means a directory
  -k, --cpus=<num>    Num of CPU logflume use
  -t, --tail=<flag>    Tail on Log
+ --topic=<topic>	kafka Topic
+ --retrytopic=<retry> retry Topic of failed message kafka Topic
+ --brokerlist=<broker> broker list, like: "192.168.1.10:9092,192.168.1.11:9092"
 `
 
 var mainRetryer *Retryer
@@ -47,6 +58,19 @@ func main() {
 
 	if args["--checkpoint"] != nil {
 		checkpoint = args["--checkpoint"].(string)
+	}
+
+	if args["--topic"] != nil {
+		kafkaTopic = args["--topic"].(string)
+	}
+
+	if args["--retrytopic"] != nil {
+		retryTopic = args["--retrytopic"].(string)
+	}
+
+	if args["--brokerlist"] != nil {
+		brokerListStr := args["--brokerlist"].(string)
+		brokerList = strings.Split(brokerListStr, ",")
 	}
 
 	runtime.GOMAXPROCS(cpus)
