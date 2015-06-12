@@ -127,6 +127,10 @@ func (p *Prospector) Prospect(done chan bool) {
 				if ev.Op&fsnotify.Create == fsnotify.Create {
 					//source := filepath.Join(checkpoint, ev.Name)
 					source := ev.Name
+					if _, ok := p.files[filepath.Base(ev.Name)]; ok {
+						// already processed
+						continue
+					}
 					p.files[filepath.Base(ev.Name)] = &FileState{Source: &source}
 					// notify Harvester new log created
 					for _, notify := range harvesterChans {
