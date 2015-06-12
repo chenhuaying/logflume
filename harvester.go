@@ -74,6 +74,11 @@ func (h *Harvester) Harvest(input chan bool, output chan *FileEvent) {
 		// XXX TODO: how process failed, and set to able
 		if !publishAble {
 			log.Println("Remote server error, can't seed, wating...")
+			if remoteAvailable {
+				publishAble = true
+				log.Println("Remote server Recovered")
+				continue
+			}
 			time.Sleep(3 * time.Second)
 			continue
 		}
@@ -141,6 +146,7 @@ func (h *Harvester) HarvestSync(input chan bool, output chan *FileEvent) {
 
 	for {
 
+		log.Println("Harvester Sync loop...")
 		// check if the log can end with eof
 		select {
 		case <-input:

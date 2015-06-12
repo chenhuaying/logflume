@@ -52,6 +52,11 @@ func (r *Registrar) RecordOffset(offset int64) error {
 	log.Printf("record offset of %s, offset %d\n", r.file.Name(), offset)
 	return nil
 }
+
+func (r *Registrar) RecordSucceed(offset, rawBytes int64) error {
+	return r.RecordOffset(offset + rawBytes)
+}
+
 func (r *Registrar) doBackup(text string) {
 }
 
@@ -74,6 +79,8 @@ func (r *Registrar) RegistrarDo(errorChan <-chan *sarama.ProducerError, succChan
 			r.recordOpt(err.Msg.Metadata.(*FileEvent).Offset + fev.RawBytes)
 			// record to retryer
 			mainRetryer.doBackup(*fev.Text)
+			// set remote serve failure
+			remoteAvailable = false
 			r.publishCtrl <- false
 		case success := <-succChan:
 			log.Println("Received OK:", success.Metadata.(*FileEvent).RawBytes,

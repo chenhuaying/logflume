@@ -8,8 +8,6 @@ import (
 )
 
 func Publish(input chan *FileEvent, source string, ctrl chan bool) {
-	log.Println("publish loop")
-
 	clientConfig := sarama.NewConfig()
 	clientConfig.Producer.RequiredAcks = sarama.WaitForLocal
 	clientConfig.Producer.Compression = sarama.CompressionSnappy
@@ -75,21 +73,41 @@ func PublishSync(input chan *FileEvent, source string, isRetryer bool) {
 		}
 		recorder = registrar
 	}
+
+	genMessage := func(rawMessage string) string {
+		return rawMessage
+	}
+	// retryer message sample: 0 this is a sample message
+	// 0 means, haven't retried succeed
+	// 1 means have been sended
+	if isRetryer {
+		genMessage = func(rawMessage string) string {
+			return rawMessage[2:]
+		}
+	}
+
 	for event := range input {
 		log.Printf("%v, %v, %v, %v\n", *event.Source, *event.Text, event.Line, event.Offset)
 		// if failed, retry send messge until succeed
+		rawMessage := *event.Text
+		message := genMessage(*event.Text)
+		if rawMessage[0] == '1' {
+			log.Printf("message[%s] have been seeded\n", rawMessage)
+			continue
+		}
+
 		for {
 			partition, offset, err := producer.SendMessage(&sarama.ProducerMessage{
 				Topic: "test",
 				Key:   sarama.StringEncoder("test-key"),
-				Value: sarama.StringEncoder(*event.Text),
+				Value: sarama.StringEncoder(message),
 			})
 			if err != nil {
 				log.Printf("Failed: %s, %d, %d\n", *event.Source, event.Line, event.Offset)
 				time.Sleep(3 * time.Second)
 			} else {
 				log.Printf("OK: %d, %d, %s\n", partition, offset, *event.Source)
-				recorder.RecordOffset(event.Offset + event.RawBytes)
+				recorder.RecordSucceed(event.Offset, event.RawBytes)
 				break
 			}
 		}

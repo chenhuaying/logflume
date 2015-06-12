@@ -30,6 +30,7 @@ Options:
 `
 
 var mainRetryer *Retryer
+var remoteAvailable bool = true
 
 func main() {
 	args, err := docopt.Parse(usage, nil, true, "logflume v1.0", false)
