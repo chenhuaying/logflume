@@ -15,9 +15,17 @@ func Publish(input chan *FileEvent, source string, ctrl chan bool) {
 	clientConfig.Producer.Return.Successes = true
 
 	//brokerList := []string{"127.0.0.1:9092"}
-	producer, err := sarama.NewAsyncProducer(brokerList, clientConfig)
-	if err != nil {
-		log.Fatalln("Failed to start Sarama producer: ", err)
+	var producer sarama.AsyncProducer
+	var err error
+	for {
+		producer, err = sarama.NewAsyncProducer(brokerList, clientConfig)
+		if err != nil {
+			log.Println("Publish: Failed to start Sarama producer: ", err)
+			log.Println("waiting....")
+			time.Sleep(1 * time.Second)
+		} else {
+			break
+		}
 	}
 
 	defer func() {
@@ -54,9 +62,17 @@ func PublishSync(input chan *FileEvent, source string, isRetryer bool) {
 		topic = retryTopic
 	}
 	//brokerList := []string{"127.0.0.1:9092"}
-	producer, err := sarama.NewSyncProducer(brokerList, clientConfig)
-	if err != nil {
-		log.Fatalln("Failed to start Sarama producer: ", err)
+	var producer sarama.SyncProducer
+	var err error
+	for {
+		producer, err = sarama.NewSyncProducer(brokerList, clientConfig)
+		if err != nil {
+			log.Println("Sync: Failed to start Sarama producer: ", err)
+			log.Println("waiting...")
+			time.Sleep(1 * time.Second)
+		} else {
+			break
+		}
 	}
 
 	defer func() {
