@@ -75,6 +75,7 @@ func main() {
 
 	if args["--topic"] != nil {
 		kafkaTopic = args["--topic"].(string)
+		retryTopic = kafkaTopic
 	}
 
 	if args["--retrytopic"] != nil {
@@ -88,6 +89,9 @@ func main() {
 
 	fmt.Println(daemon_mode, cpus, work_dir, checkpoint, tailOnLog, deadtime, kafkaTopic, retryTopic, brokerList)
 
+	if cpus < 2 {
+		cpus = runtime.NumCPU()
+	}
 	runtime.GOMAXPROCS(cpus)
 
 	if work_dir[0] == '/' {
