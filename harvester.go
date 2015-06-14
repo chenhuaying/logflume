@@ -28,6 +28,10 @@ func (h *Harvester) Harvest(input chan bool, output chan *FileEvent) {
 		panic(fmt.Sprintf("Harvest: unexcepted error: %s", err.Error()))
 	}
 	defer h.file.Close()
+
+	// this will get Publish finished
+	defer close(output)
+
 	// TODO: safe exit
 	//defer func() {
 	//	h.FinishChan <- h.Offset
@@ -125,6 +129,9 @@ func (h *Harvester) HarvestSync(input chan bool, output chan *FileEvent) {
 		panic(fmt.Sprintf("Harvest: unexcepted error: %s", err.Error()))
 	}
 	defer h.file.Close()
+
+	// this will get PublishSync finished
+	defer close(output)
 
 	var line uint64 = 0
 
