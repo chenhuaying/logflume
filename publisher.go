@@ -13,6 +13,7 @@ func Publish(input chan *FileEvent, source string, ctrl chan bool) {
 	clientConfig.Producer.Compression = sarama.CompressionSnappy
 	clientConfig.Producer.Flush.Frequency = 500 * time.Millisecond
 	clientConfig.Producer.Return.Successes = true
+	clientConfig.Producer.Partitioner = sarama.NewRoundRobinPartitioner
 
 	//brokerList := []string{"127.0.0.1:9092"}
 	var producer sarama.AsyncProducer
@@ -54,6 +55,7 @@ func PublishSync(input chan *FileEvent, source string, isRetryer bool) {
 	clientConfig := sarama.NewConfig()
 	clientConfig.Producer.RequiredAcks = sarama.WaitForAll
 	clientConfig.Producer.Compression = sarama.CompressionSnappy
+	clientConfig.Producer.Partitioner = sarama.NewRoundRobinPartitioner
 	clientConfig.Producer.Retry.Max = 10
 
 	topic := kafkaTopic
