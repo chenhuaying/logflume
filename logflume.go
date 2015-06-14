@@ -5,8 +5,11 @@ import (
 	"github.com/docopt/docopt-go"
 	"log"
 	"os"
+	"os/signal"
 	"runtime"
+	"strconv"
 	"strings"
+	"syscall"
 )
 
 var checkpoint string
@@ -54,7 +57,8 @@ func main() {
 		daemon_mode = args["--daemon"].(bool)
 	}
 	if args["--cpus"] != nil {
-		cpus = args["--cpus"].(int)
+		cpusStr := args["--cpus"].(string)
+		cpus, _ = strconv.Atoi(cpusStr)
 	}
 
 	if args["--work-dir"] != nil {
@@ -94,6 +98,17 @@ func main() {
 	}
 	runtime.GOMAXPROCS(cpus)
 
+	done := make(chan bool)
+	sigs := make(chan os.Signal, 1)
+
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		sig := <-sigs
+		log.Println(sig)
+		close(done)
+	}()
+
 	if work_dir[0] == '/' {
 		if err := os.Chdir(work_dir); err != nil {
 			log.Fatalln("change dir error:", err)
@@ -125,8 +140,6 @@ func main() {
 		log.Println("Create mainRetryer failed, error:", err)
 		return
 	}
-
-	done := make(chan bool)
 
 	prospector := Prospector{checkpoint: checkpoint, files: make(map[string]*FileState)}
 	go prospector.Prospect(done)
