@@ -22,6 +22,7 @@ var (
 	deadtime          = "1h"     //1 hour
 	defaultTopic      = "test"   //kafka Topic
 	defaultBrokerList = []string{"127.0.0.1:9092"}
+	kafkabuffer       = 256
 )
 
 var kafkaTopic = defaultTopic
@@ -42,6 +43,7 @@ Options:
  --topic=<topic>	kafka Topic
  --retrytopic=<retry> retry Topic of failed message kafka Topic
  --brokerlist=<broker> broker list, like: "192.168.1.10:9092,192.168.1.11:9092"
+ --kafkabuffer=<size>  kafaka client buffer size, system default is 256
 `
 
 var mainRetryer *Retryer
@@ -89,6 +91,11 @@ func main() {
 	if args["--brokerlist"] != nil {
 		brokerListStr := args["--brokerlist"].(string)
 		brokerList = strings.Split(brokerListStr, ",")
+	}
+
+	if args["--kafkabuffer"] != nil {
+		kafkabufferStr := args["--kafkabuffer"].(string)
+		kafkabuffer, _ = strconv.Atoi(kafkabufferStr)
 	}
 
 	fmt.Println(daemon_mode, cpus, work_dir, checkpoint, tailOnLog, deadtime, kafkaTopic, retryTopic, brokerList)

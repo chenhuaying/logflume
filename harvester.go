@@ -194,6 +194,7 @@ func (h *Harvester) HarvestSync(input chan bool, output chan *FileEvent) {
 		}
 		h.Offset += int64(bytesread)
 
+		log.Println("send event....")
 		output <- event
 	}
 }

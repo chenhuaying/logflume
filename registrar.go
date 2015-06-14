@@ -49,7 +49,7 @@ func (r *Registrar) RecordOffset(offset int64) error {
 		log.Printf("record offset of %s failed, error: %s\n", r.file.Name(), err)
 		return err
 	}
-	log.Printf("record offset of %s, offset %d\n", r.file.Name(), offset)
+	//log.Printf("record offset of %s, offset %d\n", r.file.Name(), offset)
 	return nil
 }
 
@@ -87,10 +87,10 @@ func (r *Registrar) RegistrarDo(errorChan <-chan *sarama.ProducerError, succChan
 				success.Metadata.(*FileEvent).Offset,
 				*success.Metadata.(*FileEvent).Source)
 			fev := success.Metadata.(*FileEvent)
-			log.Printf("registrar(%s), fileEvent(%s)\n", r.file.Name(), *fev.Source)
+			//log.Printf("registrar(%s), fileEvent(%s)\n", r.file.Name(), *fev.Source)
 			r.recordOpt(success.Metadata.(*FileEvent).Offset + fev.RawBytes)
 			// TODO: sync file with a switch flag
-			r.file.Sync()
+			//r.file.Sync()
 		}
 	}
 }

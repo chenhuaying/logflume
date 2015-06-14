@@ -12,8 +12,12 @@ func Publish(input chan *FileEvent, source string, ctrl chan bool) {
 	clientConfig.Producer.RequiredAcks = sarama.WaitForLocal
 	clientConfig.Producer.Compression = sarama.CompressionSnappy
 	clientConfig.Producer.Flush.Frequency = 500 * time.Millisecond
+	clientConfig.Producer.Flush.Messages = 200
+	clientConfig.Producer.Flush.MaxMessages = 200
+	clientConfig.Producer.Flush.Bytes = 16384
 	clientConfig.Producer.Return.Successes = true
 	clientConfig.Producer.Partitioner = sarama.NewRoundRobinPartitioner
+	clientConfig.ChannelBufferSize = kafkabuffer
 
 	//brokerList := []string{"127.0.0.1:9092"}
 	var producer sarama.AsyncProducer
