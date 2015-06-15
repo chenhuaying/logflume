@@ -1,7 +1,8 @@
 package main
 
 import (
-	fsnotify "gopkg.in/fsnotify.v1"
+	//fsnotify "gopkg.in/fsnotify.v1"
+	fsnotify "github.com/howeyc/fsnotify"
 	"io"
 	"io/ioutil"
 	"log"
@@ -66,7 +67,7 @@ func LoadRecord(source string) int64 {
 func (p *Prospector) ListDir() {
 	items, err := ioutil.ReadDir(p.checkpoint)
 	if err != nil {
-		log.Println(err)
+		log.Println("ReadDir:", err)
 		os.Exit(2)
 	}
 
@@ -85,7 +86,7 @@ func (p *Prospector) ListDir() {
 func (p *Prospector) Prospect(done chan bool) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		log.Println(err)
+		log.Println("NewWatch:", err)
 		os.Exit(2)
 	}
 	defer watcher.Close()
@@ -94,9 +95,9 @@ func (p *Prospector) Prospect(done chan bool) {
 
 	if pathLen := len(p.checkpoint); pathLen != 0 {
 		if p.checkpoint[pathLen-1] == '/' {
-			err = watcher.Add(p.checkpoint)
+			err = watcher.WatchFlags(p.checkpoint, fsnotify.FSN_CREATE)
 			if err != nil {
-				log.Println(err)
+				log.Println("Watch add: ", err)
 				os.Exit(2)
 			}
 			p.ListDir()
@@ -120,11 +121,11 @@ func (p *Prospector) Prospect(done chan bool) {
 		for {
 			log.Println("prospect watcher loop...")
 			select {
-			case ev, open := <-watcher.Events:
+			case ev, open := <-watcher.Event:
 				if !open {
 					continue
 				}
-				if ev.Op&fsnotify.Create == fsnotify.Create {
+				if ev.IsCreate() {
 					//source := filepath.Join(checkpoint, ev.Name)
 					source := ev.Name
 					if _, ok := p.files[filepath.Base(ev.Name)]; ok {
@@ -145,7 +146,7 @@ func (p *Prospector) Prospect(done chan bool) {
 					go harvester.Harvest(input, output)
 				}
 				log.Println(p.files)
-			case ev := <-watcher.Errors:
+			case ev := <-watcher.Error:
 				log.Println(ev)
 			}
 		}
