@@ -116,10 +116,8 @@ func main() {
 		close(done)
 	}()
 
-	if work_dir[0] == '/' {
-		if err := os.Chdir(work_dir); err != nil {
-			log.Fatalln("change dir error:", err)
-		}
+	if err := os.Chdir(work_dir); err != nil {
+		log.Fatalln("change dir error:", err)
 	}
 	if _, err := os.Stat(".lock"); os.IsNotExist(err) {
 		log.Println("starting logflume")
