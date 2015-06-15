@@ -73,7 +73,10 @@ func (r *Registrar) RegistrarDo(errorChan <-chan *sarama.ProducerError, succChan
 	}
 	for {
 		select {
-		case err := <-errorChan:
+		case err, ok := <-errorChan:
+			if !ok {
+				return
+			}
 			log.Println("Received Error:", err)
 			fev := err.Msg.Metadata.(*FileEvent)
 			r.recordOpt(err.Msg.Metadata.(*FileEvent).Offset + fev.RawBytes)
@@ -82,7 +85,10 @@ func (r *Registrar) RegistrarDo(errorChan <-chan *sarama.ProducerError, succChan
 			// set remote serve failure
 			remoteAvailable = false
 			r.publishCtrl <- false
-		case success := <-succChan:
+		case success, ok := <-succChan:
+			if !ok {
+				return
+			}
 			log.Println("Received OK:", success.Metadata.(*FileEvent).RawBytes,
 				success.Metadata.(*FileEvent).Offset,
 				*success.Metadata.(*FileEvent).Source)
