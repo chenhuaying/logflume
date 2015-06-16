@@ -1,8 +1,8 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"github.com/docopt/docopt-go"
 	"log"
 	"os"
 	"os/signal"
@@ -10,19 +10,22 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/docopt/docopt-go"
 )
 
 var checkpoint string
 var (
 	cpus              = 2
 	daemon_mode       = false
-	work_dir          = "./logflume"
+	work_dir          = "./logflume_worker"
 	tailOnLog         = false
 	harvestBufferSize = 16 << 10 //16k
 	deadtime          = "1h"     //1 hour
 	defaultTopic      = "test"   //kafka Topic
 	defaultBrokerList = []string{"127.0.0.1:9092"}
 	kafkabuffer       = 256
+	topicmap          = map[string]string{}
 )
 
 var kafkaTopic = defaultTopic
@@ -35,13 +38,14 @@ var usage = `usage: logflume (--checkpoint=<path> | -c=<path>) [options]
 Options:
  -h, --help    Help info
  -d, --daemon    Daemon mode[default: false]
- -w, --work-dir=<path>    Work directory[default: logflume]
+ -w, --work-dir=<path>    Work directory[default: logflume_worker]
  -c, --checkpoint=<path>    Check point, directory or an file, terminal with / means a directory
  -k, --cpus=<num>    Num of CPU logflume use
  -t, --tail=<flag>    Tail on Log
  --deadtime=<time>    The time between last modify, set log to dead[default: 1h](m:Minute, h:Hour)
  --topic=<topic>	kafka Topic
  --retrytopic=<retry> retry Topic of failed message kafka Topic
+ --topicmap=<map_in_json> topic map in JSON format, like: {"a_*.log":"a_topic", "b_*.log":"b_topic"}
  --brokerlist=<broker> broker list, like: "192.168.1.10:9092,192.168.1.11:9092"
  --kafkabuffer=<size>  kafaka client buffer size, system default is 256
 `
@@ -88,6 +92,14 @@ func main() {
 		retryTopic = args["--retrytopic"].(string)
 	}
 
+	if args["--topicmap"] != nil {
+		topicmapStr := args["--topicmap"].(string)
+		if err := json.Unmarshal([]byte(topicmapStr), &topicmap); err != nil {
+			fmt.Println(err)
+			os.Exit(2)
+		}
+	}
+
 	if args["--brokerlist"] != nil {
 		brokerListStr := args["--brokerlist"].(string)
 		brokerList = strings.Split(brokerListStr, ",")
@@ -99,6 +111,7 @@ func main() {
 	}
 
 	fmt.Println(daemon_mode, cpus, work_dir, checkpoint, tailOnLog, deadtime, kafkaTopic, retryTopic, brokerList)
+	fmt.Println(topicmap)
 
 	if cpus < 2 {
 		cpus = runtime.NumCPU()

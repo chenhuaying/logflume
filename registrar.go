@@ -81,7 +81,8 @@ func (r *Registrar) RegistrarDo(errorChan <-chan *sarama.ProducerError, succChan
 			fev := err.Msg.Metadata.(*FileEvent)
 			r.recordOpt(err.Msg.Metadata.(*FileEvent).Offset + fev.RawBytes)
 			// record to retryer
-			mainRetryer.doBackup(*fev.Text)
+			msg := fmt.Sprint(filepath.Base(*fev.Source)+" ", *fev.Text)
+			mainRetryer.doBackup(msg)
 			// set remote serve failure
 			remoteAvailable = false
 			r.publishCtrl <- false

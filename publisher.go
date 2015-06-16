@@ -1,10 +1,13 @@
 package main
 
 import (
-	"github.com/Shopify/sarama"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
+
+	"github.com/Shopify/sarama"
 )
 
 func Publish(input chan *FileEvent, source string, ctrl chan bool) {
@@ -42,10 +45,19 @@ func Publish(input chan *FileEvent, source string, ctrl chan bool) {
 	registrar := &Registrar{source: source, publishCtrl: ctrl}
 	go registrar.RegistrarDo(producer.Errors(), producer.Successes())
 
+	topic := kafkaTopic
+	baseName := filepath.Base(source)
+	if len(topicmap) > 0 {
+		tmpTopic := genTopic(baseName, topicmap)
+		if tmpTopic != "" {
+			topic = tmpTopic
+		}
+	}
+
 	for event := range input {
 		log.Printf("%v, %v, %v, %v\n", *event.Source, *event.Text, event.Line, event.Offset)
 		producer.Input() <- &sarama.ProducerMessage{
-			Topic:    kafkaTopic,
+			Topic:    topic,
 			Key:      sarama.StringEncoder(hashKey),
 			Value:    sarama.StringEncoder(*event.Text),
 			Metadata: event,
@@ -109,7 +121,10 @@ func PublishSync(input chan *FileEvent, source string, isRetryer bool) {
 	// 1 means have been sended
 	if isRetryer {
 		genMessage = func(rawMessage string) string {
-			return rawMessage[2:]
+			// 0|1 raw_name_of_log_file log_msg
+			rawMessage = rawMessage[2:]
+			idx := strings.Index(rawMessage, " ")
+			return rawMessage[idx+1:]
 		}
 	}
 
@@ -117,6 +132,19 @@ func PublishSync(input chan *FileEvent, source string, isRetryer bool) {
 		log.Printf("%v, %v, %v, %v\n", *event.Source, *event.Text, event.Line, event.Offset)
 		// if failed, retry send messge until succeed
 		rawMessage := *event.Text
+		if isRetryer {
+			if retryTopic != kafkaTopic {
+				topic = retryTopic
+			} else {
+				baseName := getSourceName(rawMessage)
+				if len(topicmap) > 0 {
+					tmpTopic := genTopic(baseName, topicmap)
+					if tmpTopic != "" {
+						topic = tmpTopic
+					}
+				}
+			}
+		}
 		message := genMessage(*event.Text)
 		if rawMessage[0] == '1' {
 			log.Printf("message[%s] have been seeded\n", rawMessage)
