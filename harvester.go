@@ -54,7 +54,7 @@ func (h *Harvester) Harvest(input chan bool, output chan *FileEvent) {
 	}
 	lastReadTime := time.Now()
 
-	publishCtrl := make(chan bool)
+	publishCtrl := make(chan bool, 1024)
 
 	go Publish(output, h.Path, publishCtrl)
 
@@ -62,18 +62,19 @@ func (h *Harvester) Harvest(input chan bool, output chan *FileEvent) {
 	for {
 
 		// check if the log can end with eof
-		select {
-		case <-input:
-			log.Println("Publish notify me, set EOF")
-			h.CheckEnded = true
-		case ctrl := <-publishCtrl:
-			if publishAble != ctrl {
-				publishAble = ctrl
-				continue
+		go func() {
+			for {
+				select {
+				case <-input:
+					log.Println("Publish notify me, set EOF")
+					h.CheckEnded = true
+				case ctrl := <-publishCtrl:
+					if publishAble != ctrl {
+						publishAble = ctrl
+					}
+				}
 			}
-		default:
-			// pass
-		}
+		}()
 
 		// how process failed, and set to able
 		// use a global variable, cat it be better?
