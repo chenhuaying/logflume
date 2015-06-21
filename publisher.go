@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -54,11 +55,13 @@ func Publish(input chan *FileEvent, source string, ctrl chan bool) {
 		}
 	}
 
+	key := hashKey
 	for event := range input {
 		log.Printf("%v, %v, %v, %v\n", *event.Source, *event.Text, event.Line, event.Offset)
+		key = strconv.FormatInt(event.Offset, 10)
 		producer.Input() <- &sarama.ProducerMessage{
 			Topic:    topic,
-			Key:      sarama.StringEncoder(hashKey),
+			Key:      sarama.StringEncoder(key),
 			Value:    sarama.StringEncoder(*event.Text),
 			Metadata: event,
 		}
@@ -131,6 +134,7 @@ func PublishSync(input chan *FileEvent, source string, isRetryer bool) {
 	for event := range input {
 		log.Printf("%v, %v, %v, %v\n", *event.Source, *event.Text, event.Line, event.Offset)
 		// if failed, retry send messge until succeed
+		key = strconv.FormatInt(event.Offset, 10)
 		rawMessage := *event.Text
 		if isRetryer {
 			if retryTopic != kafkaTopic {
