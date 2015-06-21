@@ -64,7 +64,7 @@ func (h *Harvester) Harvest(input chan bool, output chan *FileEvent) {
 		// check if the log can end with eof
 		select {
 		case <-input:
-			log.Println("Publish sync notify me, set EOF")
+			log.Println("Publish notify me, set EOF")
 			h.CheckEnded = true
 		case ctrl := <-publishCtrl:
 			if publishAble != ctrl {
@@ -158,7 +158,7 @@ func (h *Harvester) HarvestSync(input chan bool, output chan *FileEvent) {
 		// check if the log can end with eof
 		select {
 		case <-input:
-			log.Println("notify me, set EOF")
+			log.Println("Publish Sync notify me, set EOF")
 			h.CheckEnded = true
 		default:
 			// pass

@@ -135,8 +135,16 @@ func (p *Prospector) Prospect(done chan bool) {
 					p.files[filepath.Base(ev.Name)] = &FileState{Source: &source}
 					// notify Harvester new log created
 					for _, notify := range harvesterChans {
-						notify <- true
+						select {
+						case notify <- true:
+							//do nothing
+						default:
+							//warnning!
+							log.Println("notify channel full, may have errors")
+						}
 					}
+
+					harvesterChans = harvesterChans[len(harvesterChans):]
 
 					var offset int64 = 0
 					harvester := &Harvester{Path: source, Offset: offset}
