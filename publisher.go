@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -9,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
+	log "github.com/Sirupsen/logrus"
 )
 
 func Publish(input chan *FileEvent, source string, ctrl chan bool) {
@@ -29,8 +29,8 @@ func Publish(input chan *FileEvent, source string, ctrl chan bool) {
 	for {
 		producer, err = sarama.NewAsyncProducer(brokerList, clientConfig)
 		if err != nil {
-			log.Println("Publish: Failed to start Sarama producer: ", err)
-			log.Println("waiting....")
+			log.Error("Publish: Failed to start Sarama producer: ", err)
+			log.Info("waiting....")
 			time.Sleep(1 * time.Second)
 		} else {
 			break
@@ -39,7 +39,7 @@ func Publish(input chan *FileEvent, source string, ctrl chan bool) {
 
 	defer func() {
 		if err := producer.Close(); err != nil {
-			log.Println("Failed to shutdown producer cleanly", err)
+			log.Error("Failed to shutdown producer cleanly", err)
 		}
 	}()
 
@@ -57,7 +57,7 @@ func Publish(input chan *FileEvent, source string, ctrl chan bool) {
 
 	key := hashKey
 	for event := range input {
-		log.Printf("%v, %v, %v, %v\n", *event.Source, *event.Text, event.Line, event.Offset)
+		log.Debugf("%v, %v, %v, %v", *event.Source, *event.Text, event.Line, event.Offset)
 		key = strconv.FormatInt(event.Offset, 10)
 		producer.Input() <- &sarama.ProducerMessage{
 			Topic:    topic,
@@ -70,7 +70,7 @@ func Publish(input chan *FileEvent, source string, ctrl chan bool) {
 }
 
 func PublishSync(input chan *FileEvent, source string, isRetryer bool) {
-	log.Println("publishSync loop")
+	log.Debug("publishSync loop")
 	clientConfig := sarama.NewConfig()
 	clientConfig.Producer.RequiredAcks = sarama.WaitForAll
 	clientConfig.Producer.Compression = sarama.CompressionSnappy
@@ -88,8 +88,8 @@ func PublishSync(input chan *FileEvent, source string, isRetryer bool) {
 	for {
 		producer, err = sarama.NewSyncProducer(brokerList, clientConfig)
 		if err != nil {
-			log.Println("Sync: Failed to start Sarama producer: ", err)
-			log.Println("waiting...")
+			log.Error("Sync: Failed to start Sarama producer: ", err)
+			log.Info("waiting...")
 			time.Sleep(1 * time.Second)
 		} else {
 			break
@@ -98,7 +98,7 @@ func PublishSync(input chan *FileEvent, source string, isRetryer bool) {
 
 	defer func() {
 		if err := producer.Close(); err != nil {
-			log.Println("Failed to shutdown producer cleanly", err)
+			log.Error("Failed to shutdown producer cleanly", err)
 		}
 	}()
 
@@ -110,7 +110,7 @@ func PublishSync(input chan *FileEvent, source string, isRetryer bool) {
 	} else {
 		registrar := &Registrar{source: source, dir: REGISTRAR_DIR}
 		if _, err := registrar.OpenRecord(registrar.dir); err != nil {
-			log.Println("PublishSync open record failed, error:", err)
+			log.Error("PublishSync open record failed, error:", err)
 			os.Exit(2)
 		}
 		recorder = registrar
@@ -132,7 +132,7 @@ func PublishSync(input chan *FileEvent, source string, isRetryer bool) {
 	}
 
 	for event := range input {
-		log.Printf("%v, %v, %v, %v\n", *event.Source, *event.Text, event.Line, event.Offset)
+		log.Debugf("%v, %v, %v, %v\n", *event.Source, *event.Text, event.Line, event.Offset)
 		// if failed, retry send messge until succeed
 		key = strconv.FormatInt(event.Offset, 10)
 		rawMessage := *event.Text
@@ -151,7 +151,7 @@ func PublishSync(input chan *FileEvent, source string, isRetryer bool) {
 		}
 		message := genMessage(*event.Text)
 		if rawMessage[0] == '1' {
-			log.Printf("message[%s] have been seeded\n", rawMessage)
+			log.Debug("message[%s] have been seeded", rawMessage)
 			continue
 		}
 
@@ -162,10 +162,10 @@ func PublishSync(input chan *FileEvent, source string, isRetryer bool) {
 				Value: sarama.StringEncoder(message),
 			})
 			if err != nil {
-				log.Printf("Failed: %s, %d, %d\n", *event.Source, event.Line, event.Offset)
+				log.Errorf("Failed: %s, %d, %d\n", *event.Source, event.Line, event.Offset)
 				time.Sleep(3 * time.Second)
 			} else {
-				log.Printf("OK: %d, %d, %s\n", partition, offset, *event.Source)
+				log.Debugf("OK: %d, %d, %s\n", partition, offset, *event.Source)
 				recorder.RecordSucceed(event.Offset, event.RawBytes)
 				break
 			}

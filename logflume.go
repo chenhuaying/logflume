@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"runtime"
@@ -11,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docopt/docopt-go"
 )
 
@@ -41,6 +41,7 @@ Options:
  -w, --work-dir=<path>    Work directory[default: logflume_worker]
  -c, --checkpoint=<path>    Check point, directory or an file, terminal with / means a directory
  -k, --cpus=<num>    Num of CPU logflume use
+ -l, --log-level=<level>    Log level, default info, panic | fatal | error | warn | info | debug
  -t, --tail=<flag>    Tail on Log
  --deadtime=<time>    The time between last modify, set log to dead[default: 1h](m:Minute, h:Hour)
  --topic=<topic>	kafka Topic
@@ -53,18 +54,36 @@ Options:
 var mainRetryer *Retryer
 var remoteAvailable bool = true
 
+func init() {
+	formatter := log.TextFormatter{}
+	formatter.DisableTimestamp = false
+	formatter.DisableColors = true
+	log.SetFormatter(&formatter)
+	//log.SetLevel(log.InfoLevel)
+}
+
 func main() {
 	args, err := docopt.Parse(usage, nil, true, "logflume v1.0", false)
 	if err != nil {
-		log.Println("Parse command line error: ", err)
+		log.Error("Parse command line error: ", err)
 	}
-	fmt.Println(args)
+	log.Println(args)
 	if args["--daemon"] != nil {
 		daemon_mode = args["--daemon"].(bool)
 	}
 	if args["--cpus"] != nil {
 		cpusStr := args["--cpus"].(string)
 		cpus, _ = strconv.Atoi(cpusStr)
+	}
+
+	if args["--log-level"] != nil {
+		levelStr := args["--log-level"].(string)
+		level, err := log.ParseLevel(levelStr)
+		if err != nil {
+			log.Errorf("Parse level string(%s) failed, error: %s", levelStr, err)
+		} else {
+			log.SetLevel(level)
+		}
 	}
 
 	if args["--work-dir"] != nil {
@@ -95,7 +114,7 @@ func main() {
 	if args["--topicmap"] != nil {
 		topicmapStr := args["--topicmap"].(string)
 		if err := json.Unmarshal([]byte(topicmapStr), &topicmap); err != nil {
-			fmt.Println(err)
+			log.Error(err)
 			os.Exit(2)
 		}
 	}
@@ -110,8 +129,8 @@ func main() {
 		kafkabuffer, _ = strconv.Atoi(kafkabufferStr)
 	}
 
-	fmt.Println(daemon_mode, cpus, work_dir, checkpoint, tailOnLog, deadtime, kafkaTopic, retryTopic, brokerList)
-	fmt.Println(topicmap)
+	log.Println(daemon_mode, cpus, work_dir, checkpoint, tailOnLog, deadtime, kafkaTopic, retryTopic, brokerList)
+	log.Println(topicmap)
 
 	if cpus < 2 {
 		cpus = runtime.NumCPU()
@@ -125,7 +144,7 @@ func main() {
 
 	go func() {
 		sig := <-sigs
-		log.Println(sig)
+		log.Debug(sig)
 		close(done)
 	}()
 
@@ -133,9 +152,9 @@ func main() {
 		log.Fatalln("change dir error:", err)
 	}
 	if _, err := os.Stat(".lock"); os.IsNotExist(err) {
-		log.Println("starting logflume")
+		log.Debug("starting logflume")
 	} else {
-		log.Println("already run")
+		log.Error("already run")
 		os.Exit(2)
 	}
 	lockFile, err := os.OpenFile(".lock", os.O_CREATE|os.O_WRONLY, 0666)
@@ -145,17 +164,17 @@ func main() {
 
 	defer lockFile.Close()
 	defer func() {
-		log.Println("remove .lock file")
+		log.Info("remove .lock file")
 		os.Remove(".lock")
 	}()
 
 	if _, err := lockFile.WriteString(fmt.Sprintf("%d", os.Getpid())); err != nil {
-		log.Println("write lock file failed, error:", err)
+		log.Error("write lock file failed, error:", err)
 	}
 
 	mainRetryer, err = NewRetryer("retry/backup/retry.list")
 	if err != nil {
-		log.Println("Create mainRetryer failed, error:", err)
+		log.Error("Create mainRetryer failed, error:", err)
 		return
 	}
 

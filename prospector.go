@@ -1,14 +1,15 @@
 package main
 
 import (
-	//fsnotify "gopkg.in/fsnotify.v1"
-	fsnotify "github.com/howeyc/fsnotify"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
+
+	log "github.com/Sirupsen/logrus"
+	//fsnotify "gopkg.in/fsnotify.v1"
+	fsnotify "github.com/howeyc/fsnotify"
 )
 
 type Prospector struct {
@@ -19,16 +20,16 @@ type Prospector struct {
 
 func OpenRecord(path string) (*os.File, error) {
 	if _, err := os.Stat(path); err != nil {
-		log.Printf("OpenRecord %d failed, error: %s\n", path, err)
+		log.Errorf("OpenRecord %d failed, error: %s", path, err)
 		return nil, err
 	}
 
 	file, err := os.OpenFile(path, os.O_RDONLY, 0666)
 	if err != nil {
-		log.Printf("open %s failed, error:%s\n", path, err)
+		log.Errorf("open %s failed, error:%s", path, err)
 		return nil, err
 	}
-	log.Printf("Prospector open record %s ok %v\n", path, file.Name())
+	log.Errorf("Prospector open record %s ok %v", path, file.Name())
 
 	return file, nil
 }
@@ -40,7 +41,7 @@ func LoadRecord(source string) int64 {
 
 	file, err := OpenRecord(recordPath)
 	if err != nil {
-		log.Println("Source(%s), OpenRecord %s failed, use default 0 offset", source, recordPath)
+		log.Errorf("Source(%s), OpenRecord %s failed, use default 0 offset", source, recordPath)
 		return 0
 	}
 
@@ -54,7 +55,7 @@ func LoadRecord(source string) int64 {
 			offsetStr = offsetStr[0:bytes]
 			off, err := strconv.ParseInt(offsetStr, 10, 64)
 			if err != nil {
-				log.Printf("strconv offsetStr(%s) with error: %s", offsetStr, err)
+				log.Errorf("strconv offsetStr(%s) with error: %s", offsetStr, err)
 				return 0
 			}
 			return off
@@ -67,26 +68,26 @@ func LoadRecord(source string) int64 {
 func (p *Prospector) ListDir() {
 	items, err := ioutil.ReadDir(p.checkpoint)
 	if err != nil {
-		log.Println("ReadDir:", err)
+		log.Error("ReadDir:", err)
 		os.Exit(2)
 	}
 
 	for _, item := range items {
 		if item.IsDir() {
-			log.Printf("%s is a directory, skip", item.Name())
+			log.Info("%s is a directory, skip", item.Name())
 			continue
 		}
 		fileName := item.Name()
 		source := filepath.Join(checkpoint, fileName)
 		p.files[fileName] = &FileState{Source: &source}
 	}
-	log.Println(p.files)
+	log.Debug(p.files)
 }
 
 func (p *Prospector) Prospect(done chan bool) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		log.Println("NewWatch:", err)
+		log.Error("NewWatch:", err)
 		os.Exit(2)
 	}
 	defer watcher.Close()
@@ -97,13 +98,13 @@ func (p *Prospector) Prospect(done chan bool) {
 		if p.checkpoint[pathLen-1] == '/' {
 			err = watcher.WatchFlags(p.checkpoint, fsnotify.FSN_CREATE)
 			if err != nil {
-				log.Println("Watch add: ", err)
+				log.Error("Watch add: ", err)
 				os.Exit(2)
 			}
 			p.ListDir()
 		} else {
 			p.files[checkpoint] = &FileState{Source: &checkpoint}
-			log.Println(p.files)
+			log.Debug(p.files)
 		}
 	}
 
@@ -119,7 +120,7 @@ func (p *Prospector) Prospect(done chan bool) {
 
 	go func() {
 		for {
-			log.Println("prospect watcher loop...")
+			log.Debug("prospect watcher loop...")
 			select {
 			case ev, open := <-watcher.Event:
 				if !open {
@@ -140,7 +141,7 @@ func (p *Prospector) Prospect(done chan bool) {
 							//do nothing
 						default:
 							//warnning!
-							log.Println("notify channel full, may have errors")
+							log.Warn("notify channel full, may have errors")
 						}
 					}
 
@@ -153,9 +154,9 @@ func (p *Prospector) Prospect(done chan bool) {
 					output := make(chan *FileEvent, 16)
 					go harvester.Harvest(input, output)
 				}
-				log.Println(p.files)
+				log.Debug(p.files)
 			case ev := <-watcher.Error:
-				log.Println(ev)
+				log.Error(ev)
 			}
 		}
 	}()

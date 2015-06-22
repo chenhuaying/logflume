@@ -5,9 +5,10 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 type Harvester struct {
@@ -49,7 +50,7 @@ func (h *Harvester) Harvest(input chan bool, output chan *FileEvent) {
 	var readTimeout = 3 * time.Second
 	deadTime, err := time.ParseDuration(deadtime)
 	if err != nil {
-		log.Printf("Parse deadTime %s duration failed: %d\n", deadtime, err)
+		log.Errorf("Parse deadTime %s duration failed: %d", deadtime, err)
 		deadTime = 60 * time.Minute
 	}
 	lastReadTime := time.Now()
@@ -66,7 +67,7 @@ func (h *Harvester) Harvest(input chan bool, output chan *FileEvent) {
 			for {
 				select {
 				case <-input:
-					log.Println("Publish notify me, set EOF")
+					log.Info("Publish notify me, set EOF")
 					h.CheckEnded = true
 				case ctrl := <-publishCtrl:
 					if publishAble != ctrl {
@@ -79,10 +80,10 @@ func (h *Harvester) Harvest(input chan bool, output chan *FileEvent) {
 		// how process failed, and set to able
 		// use a global variable, cat it be better?
 		if !publishAble {
-			log.Println("Remote server error, can't seed, wating...")
+			log.Info("Remote server error, can't seed, wating...")
 			if remoteAvailable {
 				publishAble = true
-				log.Println("Remote server Recovered")
+				log.Info("Remote server Recovered")
 				continue
 			}
 			time.Sleep(3 * time.Second)
@@ -94,16 +95,16 @@ func (h *Harvester) Harvest(input chan bool, output chan *FileEvent) {
 			if err == io.EOF {
 				info, _ := h.file.Stat()
 				if info.Size() < h.Offset {
-					log.Println("File may have been truncated, seek to beginning: ", h.Path)
+					log.Info("File may have been truncated, seek to beginning: ", h.Path)
 					h.file.Seek(0, os.SEEK_SET)
 					h.Offset = 0
 				} else if age := time.Since(lastReadTime); age > deadTime && h.CheckEnded {
-					log.Printf("stopping harvest of %s; last change was %v age\n", h.Path, age)
+					log.Infof("stopping harvest of %s; last change was %v age", h.Path, age)
 					return
 				}
 				continue
 			} else {
-				log.Printf("Unexpected state reading from %s; error: %s\n", h.Path, err)
+				log.Errorf("Unexpected state reading from %s; error: %s", h.Path, err)
 				return
 			}
 		}
@@ -146,7 +147,7 @@ func (h *Harvester) HarvestSync(input chan bool, output chan *FileEvent) {
 	var readTimeout = 3 * time.Second
 	deadTime, err := time.ParseDuration(deadtime)
 	if err != nil {
-		log.Printf("Parse deadTime %s duration failed: %d\n", deadtime, err)
+		log.Errorf("Parse deadTime %s duration failed: %d", deadtime, err)
 		deadTime = 60 * time.Minute
 	}
 	lastReadTime := time.Now()
@@ -155,11 +156,11 @@ func (h *Harvester) HarvestSync(input chan bool, output chan *FileEvent) {
 
 	for {
 
-		log.Println("Harvester Sync loop...")
+		log.Debug("Harvester Sync loop...")
 		// check if the log can end with eof
 		select {
 		case <-input:
-			log.Println("Publish Sync notify me, set EOF")
+			log.Info("Publish Sync notify me, set EOF")
 			h.CheckEnded = true
 		default:
 			// pass
@@ -170,16 +171,16 @@ func (h *Harvester) HarvestSync(input chan bool, output chan *FileEvent) {
 			if err == io.EOF {
 				info, _ := h.file.Stat()
 				if info.Size() < h.Offset {
-					log.Println("File may have been truncated, seek to beginning: ", h.Path)
+					log.Info("File may have been truncated, seek to beginning: ", h.Path)
 					h.file.Seek(0, os.SEEK_SET)
 					h.Offset = 0
 				} else if age := time.Since(lastReadTime); age > deadTime && h.CheckEnded {
-					log.Printf("stopping harvest of %s; last change was %v age\n", h.Path, age)
+					log.Infof("stopping harvest of %s; last change was %v age", h.Path, age)
 					return
 				}
 				continue
 			} else {
-				log.Printf("Unexpected state reading from %s; error: %s\n", h.Path, err)
+				log.Errorf("Unexpected state reading from %s; error: %s", h.Path, err)
 				return
 			}
 		}
@@ -195,7 +196,7 @@ func (h *Harvester) HarvestSync(input chan bool, output chan *FileEvent) {
 		}
 		h.Offset += int64(bytesread)
 
-		log.Println("send event....")
+		log.Debugf("send event[%s %d %d]", event.Source, event.Offset, event.Line)
 		output <- event
 	}
 }
@@ -205,7 +206,7 @@ func (h *Harvester) Open() *os.File {
 		var err error
 		h.file, err = os.Open(h.Path)
 		if err != nil {
-			log.Printf("open %s err:%s\n", h.Path, err)
+			log.Errorf("open %s err:%s", h.Path, err)
 			time.Sleep(3 * time.Second)
 		} else {
 			break

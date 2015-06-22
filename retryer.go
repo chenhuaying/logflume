@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 const FORMAT_TIME_DAY string = "20060102"
@@ -34,13 +35,13 @@ func NewRetryer(path string) (*Retryer, error) {
 	// if dir already exist, haven't an error!
 	if err != nil {
 		if err != os.ErrExist {
-			log.Printf("MkdirAll %s failed, error: %s\n", dir, err)
+			log.Errorf("MkdirAll %s failed, error: %s", dir, err)
 			return nil, err
 		}
 	}
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
-		log.Printf("Open retryer path[%s] failed, err: %s\n", path, err)
+		log.Errorf("Open retryer path[%s] failed, err: %s", path, err)
 		return nil, err
 	}
 	return &Retryer{fileName: path, file: file, prefix: RETRY_FLAG_UNDO, suffix: genDayTime(time.Now())}, nil
@@ -71,7 +72,7 @@ func (r *Retryer) doRotate(suffix string) error {
 	lastFileName := r.fileName + "." + r.suffix
 	err := os.Rename(r.fileName, lastFileName)
 	if err != nil {
-		log.Printf("doRotate of %s to %s failed, err:\n", r.fileName, lastFileName, err)
+		log.Errorf("doRotate of %s to %s failed, err:", r.fileName, lastFileName, err)
 		return err
 	}
 
@@ -79,7 +80,7 @@ func (r *Retryer) doRotate(suffix string) error {
 
 	file, err := os.OpenFile(r.fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
-		log.Printf("Open retryer path[%s] failed, err: %s\n", r.fileName, err)
+		log.Errorf("Open retryer path[%s] failed, err: %s", r.fileName, err)
 		return err
 	}
 
@@ -90,20 +91,20 @@ func (r *Retryer) doRotate(suffix string) error {
 }
 
 func (r *Retryer) doBackup(text string) {
-	log.Println("retryer do backup")
+	log.Debug("retryer do backup")
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	err := r.rotate()
 	if err != nil {
-		log.Printf("Retryer backup %s failed when rotate, err: %s\n", text, err)
+		log.Errorf("Retryer backup %s failed when rotate, err: %s", text, err)
 		return
 	}
 
 	s := fmt.Sprintln(r.prefix, text)
 	_, err = r.file.WriteString(s)
 	if err != nil {
-		log.Printf("Retryer backup %s failed, err: %s\n", text, err)
+		log.Errorf("Retryer backup %s failed, err: %s", text, err)
 	}
 }
 
@@ -119,11 +120,11 @@ func (r *Retryer) doRetry() {
 	_, err := os.Stat(filepath.Dir(source))
 	if os.IsNotExist(err) {
 		if err := os.MkdirAll(filepath.Dir(source), 0755); err != nil {
-			log.Println("Retry %s Error: %s, fatal\n", source, err)
+			log.Errorf("Retry %s Error: %s, fatal", source, err)
 			os.Exit(2)
 		}
 	}
-	log.Println("doRetry begin.....")
+	log.Debug("doRetry begin.....")
 
 	var offset int64 = 0
 	input := make(chan bool, 10)
@@ -133,13 +134,13 @@ func (r *Retryer) doRetry() {
 
 	info, err := os.Stat(source)
 	if err != nil {
-		log.Print("Just open and get Stat of %s failed, error: %s\n", source, err)
+		log.Errorf("Just open and get Stat of %s failed, error: %s", source, err)
 		os.Exit(2)
 	}
 
 	file, err := os.OpenFile(r.fileName, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		log.Printf("Open retryer path[%s] failed, err: %s\n", r.fileName, err)
+		log.Errorf("Open retryer path[%s] failed, err: %s", r.fileName, err)
 		os.Exit(2)
 	}
 	defer file.Close()
@@ -149,10 +150,10 @@ func (r *Retryer) doRetry() {
 	stat := info.Sys().(*syscall.Stat_t)
 
 	for {
-		log.Println("Retryer, check looping...")
+		log.Debug("Retryer, check looping...")
 		newInfo, err := os.Stat(source)
 		if err != nil {
-			log.Print("Get Stat of %s failed, error: %s\n", source, err)
+			log.Errorf("Get Stat of %s failed, error: %s", source, err)
 			continue
 		}
 		newStat := newInfo.Sys().(*syscall.Stat_t)
