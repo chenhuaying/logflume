@@ -40,7 +40,7 @@ func (r *Registrar) OpenRecord(recordDir string) (*os.File, error) {
 		log.Errorf("open %s failed, error:%s", path, err)
 		return nil, err
 	}
-	log.Info("registrar open record %s ok %v", path, file)
+	log.Infof("registrar open record %s ok %v", path, file)
 	r.file = file
 	return file, nil
 }
