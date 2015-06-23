@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	//fsnotify "gopkg.in/fsnotify.v1"
@@ -75,6 +76,14 @@ func (p *Prospector) ListDir() {
 	for _, item := range items {
 		if item.IsDir() {
 			log.Info("%s is a directory, skip", item.Name())
+			continue
+		}
+		mtime := item.ModTime()
+		startTime, err := time.ParseDuration(starttime)
+		if err != nil {
+			startTime = 1 * time.Hour
+		}
+		if age := time.Since(mtime); age >= startTime {
 			continue
 		}
 		fileName := item.Name()

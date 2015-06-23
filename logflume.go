@@ -26,6 +26,7 @@ var (
 	defaultBrokerList = []string{"127.0.0.1:9092"}
 	kafkabuffer       = 256
 	topicmap          = map[string]string{}
+	starttime         = "1h"
 )
 
 var kafkaTopic = defaultTopic
@@ -49,6 +50,7 @@ Options:
  --topicmap=<map_in_json> topic map in JSON format, like: {"a_*.log":"a_topic", "b_*.log":"b_topic"}
  --brokerlist=<broker> broker list, like: "192.168.1.10:9092,192.168.1.11:9092"
  --kafkabuffer=<size>  kafaka client buffer size, system default is 256
+ --starttime=<stime>   set collect starttime [default: 1h]
 `
 
 var mainRetryer *Retryer
@@ -127,6 +129,10 @@ func main() {
 	if args["--kafkabuffer"] != nil {
 		kafkabufferStr := args["--kafkabuffer"].(string)
 		kafkabuffer, _ = strconv.Atoi(kafkabufferStr)
+	}
+
+	if args["--starttime"] != nil {
+		starttime = args["--starttime"].(string)
 	}
 
 	log.Println(daemon_mode, cpus, work_dir, checkpoint, tailOnLog, deadtime, kafkaTopic, retryTopic, brokerList)
