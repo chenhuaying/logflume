@@ -29,6 +29,19 @@ type Retryer struct {
 	lock sync.Mutex
 }
 
+type RetryRecorder struct {
+	file *os.File
+}
+
+func (r *RetryRecorder) RecordSucceed(offset int64, RawBytes int64) error {
+	_, err := r.file.WriteAt([]byte(RETRY_FLAG_DONE), offset)
+	remoteAvailable = true
+	return err
+}
+
+func (r *RetryRecorder) doBackup(text string) {
+}
+
 func NewRetryer(path string) (*Retryer, error) {
 	dir := filepath.Dir(path)
 	err := os.MkdirAll(dir, 0755)
@@ -130,7 +143,6 @@ func (r *Retryer) doRetry() {
 	input := make(chan bool, 10)
 	output := make(chan *FileEvent, 16)
 	h := &Harvester{Path: source, Offset: offset, retryer: true}
-	go h.HarvestSync(input, output)
 
 	info, err := os.Stat(source)
 	if err != nil {
@@ -144,8 +156,9 @@ func (r *Retryer) doRetry() {
 		os.Exit(2)
 	}
 	defer file.Close()
-
 	r.vernier = file
+
+	go h.HarvestSync(input, output)
 
 	stat := info.Sys().(*syscall.Stat_t)
 
@@ -159,6 +172,20 @@ func (r *Retryer) doRetry() {
 		newStat := newInfo.Sys().(*syscall.Stat_t)
 		if stat.Ino != newStat.Ino {
 			input <- true
+
+			var offset int64 = 0
+			input = make(chan bool, 10)
+			newoutput := make(chan *FileEvent, 16)
+			h := &Harvester{Path: source, Offset: offset, retryer: true}
+			file, err := os.OpenFile(r.fileName, os.O_CREATE|os.O_WRONLY, 0644)
+			if err != nil {
+				log.Errorf("Open retryer path[%s] failed, err: %s", r.fileName, err)
+				os.Exit(2)
+			}
+			// delay close file may write error
+			stat = newStat
+			r.vernier = file
+			go h.HarvestSync(input, newoutput)
 		}
 		time.Sleep(3 * time.Second)
 	}

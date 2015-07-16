@@ -50,7 +50,7 @@ Options:
  --topicmap=<map_in_json> topic map in JSON format, like: {"a_*.log":"a_topic", "b_*.log":"b_topic"}
  --brokerlist=<broker> broker list, like: "192.168.1.10:9092,192.168.1.11:9092"
  --kafkabuffer=<size>  kafaka client buffer size, system default is 256
- --starttime=<stime>   set collect starttime [default: 1h]
+ --starttime=<stime>   set collect starttime[default: 1h]
 `
 
 var mainRetryer *Retryer

@@ -38,3 +38,23 @@ func TestGetSourceName(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestMatchTopic(t *testing.T) {
+	path1 := "a_123.log"
+	path2 := "m_123.log"
+
+	m1 := matchTopic(path1, testTopicMap)
+	m2 := matchTopic(path2, testTopicMap)
+
+	if m1 == false || m2 == true {
+		t.Fail()
+	}
+
+	emptyTopic := map[string]string{}
+	m1 = matchTopic(path1, emptyTopic)
+	m2 = matchTopic(path2, emptyTopic)
+
+	if m1 == false || m2 == false {
+		t.Fail()
+	}
+}

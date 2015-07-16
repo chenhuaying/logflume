@@ -21,7 +21,7 @@ type Prospector struct {
 
 func OpenRecord(path string) (*os.File, error) {
 	if _, err := os.Stat(path); err != nil {
-		log.Errorf("OpenRecord %d failed, error: %s", path, err)
+		log.Errorf("OpenRecord %s failed, error: %s", path, err)
 		return nil, err
 	}
 
@@ -118,6 +118,16 @@ func (p *Prospector) Prospect(done chan bool) {
 	}
 
 	for _, source := range p.files {
+		// if topic map setted, do filter
+		if !matchTopic(filepath.Base(*source.Source), topicmap) {
+			continue
+		}
+		//if len(topicmap) > 0 {
+		//	topic := genTopic(filepath.Base(*source.Source), topicmap)
+		//	if topic == "" {
+		//		continue
+		//	}
+		//}
 		input := make(chan bool, 10)
 		harvesterChans = append(harvesterChans, input)
 		// set to last process
@@ -143,6 +153,17 @@ func (p *Prospector) Prospect(done chan bool) {
 						continue
 					}
 					p.files[filepath.Base(ev.Name)] = &FileState{Source: &source}
+
+					// if topic map setted, do filter
+					if !matchTopic(filepath.Base(source), topicmap) {
+						continue
+					}
+					//if len(topicmap) > 0 {
+					//	topic := genTopic(filepath.Base(source), topicmap)
+					//	if topic == "" {
+					//		continue
+					//	}
+					//}
 					// notify Harvester new log created
 					for _, notify := range harvesterChans {
 						select {

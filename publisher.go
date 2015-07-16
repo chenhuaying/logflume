@@ -106,7 +106,9 @@ func PublishSync(input chan *FileEvent, source string, isRetryer bool) {
 	var recorder Recorder
 	if isRetryer {
 		// set to global retryer
-		recorder = mainRetryer
+		retryRecorder := &RetryRecorder{file: mainRetryer.vernier}
+		recorder = retryRecorder
+		defer retryRecorder.file.Close()
 	} else {
 		registrar := &Registrar{source: source, dir: REGISTRAR_DIR}
 		if _, err := registrar.OpenRecord(registrar.dir); err != nil {

@@ -22,3 +22,16 @@ func getSourceName(message string) string {
 	}
 	return ""
 }
+
+func matchTopic(name string, topicmap map[string]string) bool {
+	if len(topicmap) > 0 {
+		topic := genTopic(name, topicmap)
+		if topic == "" {
+			return false
+		} else {
+			return true
+		}
+	} else {
+		return true
+	}
+}

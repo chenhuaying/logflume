@@ -55,7 +55,7 @@ func (h *Harvester) Harvest(input chan bool, output chan *FileEvent) {
 	}
 	lastReadTime := time.Now()
 
-	publishCtrl := make(chan bool, 1024)
+	publishCtrl := make(chan bool, 10)
 
 	go Publish(output, h.Path, publishCtrl)
 
